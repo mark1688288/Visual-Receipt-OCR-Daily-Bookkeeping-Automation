@@ -65,7 +65,7 @@ curl -X POST https://<your-cloud-run-service-url>/process-receipt \
   -F "file=@/path/to/receipt.jpg"
 ```
 ### Examples
-iPhone iOS Shortcuts </br>
+iOS Shortcuts </br>
 <img width="512" height="523" alt="Example_Shortcuts" src="https://github.com/user-attachments/assets/912a92ad-b0da-4a32-9ff1-e0d8b1fbda90" />
 
 Google Drive Sheets
