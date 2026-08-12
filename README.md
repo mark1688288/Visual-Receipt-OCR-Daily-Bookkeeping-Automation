@@ -9,24 +9,20 @@ An automated, serverless pipeline hosted on Google Cloud Run that converts physi
 * **Serverless Architecture**: Built with Python and containerized for Google Cloud Run for scalable execution.
 
 ## Workflow Architecture
-```text
-[Client App / Webhook / Apple Shortcuts]
-                   │
-                   │ (HTTP POST Image)
-                   ▼
-     [Google Cloud Run (Python)]
-                   │
-                   ├──► [Vertex AI API] (Parses image ──► Returns JSON)
-                   ├──► [Google Drive API] (Authenticates via Service Account)
-                   │
-                   └──► [Google Sheets API] (Authenticates via Service Account)
-                                 │
-                                 ▼
-                          [Google Sheet]
-                                 ├── Locates / creates date sheet (DD-MM-YYYY)
-                                 ├── Appends line items
-                                 └── Recalculates daily subtotal
-```
+flowchart TD
+    A[Client App / Webhook / Apple Shortcuts] -->|HTTP POST Image| B[Google Cloud Run - Python]
+    
+    B --> C[Vertex AI API<br/>Parses image ──► Returns JSON]
+    B --> D[Google Drive API<br/>Auth via Service Account]
+    B --> E[Google Sheets API<br/>Auth via Service Account]
+    
+    E --> F[(Google Sheet)]
+    
+    subgraph Sheet_Process [Sheet Operations]
+        F --> F1[Locates/creates date sheet DD-MM-YYYY]
+        F1 --> F2[Appends line items]
+        F2 --> F3[Recalculates daily subtotal]
+    end
 ---
 
 ## Prerequisites
