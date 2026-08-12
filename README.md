@@ -1,6 +1,8 @@
 # Visual-Receipt-OCR-Daily-Bookkeeping-Automation
 An automated, serverless pipeline hosted on Google Cloud Run that converts physical receipt images into structured JSON data using the Gemini API and updates daily accounting entries on Google Sheets.
 
+---
+
 ## Features
 
 * **Multimodal OCR Extraction**: Uses Google's Vertex AI API (model: Gemini-Flash) to extract structured fields (items, date, tax, vendor, and total amount) directly from receipt images via POST requests.
@@ -8,7 +10,10 @@ An automated, serverless pipeline hosted on Google Cloud Run that converts physi
 * **Daily Subtotal Management**: Groups transactions by date (`DD-MM-YYYY`), inserts new entries, and dynamically recalculates running daily subtotals.
 * **Serverless Architecture**: Built with Python and containerized for Google Cloud Run for scalable execution.
 
+---
+
 ## Workflow Architecture
+```mermaid
 flowchart TD
     A[Client App / Webhook / Apple Shortcuts] -->|HTTP POST Image| B[Google Cloud Run - Python]
     
@@ -23,6 +28,7 @@ flowchart TD
         F1 --> F2[Appends line items]
         F2 --> F3[Recalculates daily subtotal]
     end
+```
 ---
 
 ## Prerequisites
