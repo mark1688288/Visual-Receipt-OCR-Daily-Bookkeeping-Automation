@@ -5,7 +5,7 @@ An automated, serverless pipeline hosted on Google Cloud Run that converts physi
 
 ## Features
 
-* **Multimodal OCR Extraction**: Uses Google's Vertex AI API (model: Gemini-Flash) to extract structured fields (items, date, tax, vendor, and total amount) directly from receipt images via POST requests.
+* **Multimodal OCR Extraction**: Uses Google's Vertex AI API (model: Gemini-Flash) to extract structured fields (e.g. items, date, unit price, store name, and quantity...) directly from receipt images via POST requests.
 * **Automated Google Sheets Sync**: Uses a Google Cloud Service Account to seamlessly write extracted receipt data to a designated Google Drive Spreadsheet.
 * **Daily Subtotal Management**: Groups transactions by date (`DD-MM-YYYY`), inserts new entries, and dynamically recalculates running daily subtotals.
 * **Serverless Architecture**: Built with Python and containerized for Google Cloud Run for scalable execution.
