@@ -1,5 +1,5 @@
 # Visual-Receipt-OCR-Daily-Bookkeeping-Automation
-An automated, serverless pipeline hosted on Google Cloud Run that converts physical receipt images into structured JSON data using the Gemini API and updates daily accounting entries on Google Sheets.
+An automated, serverless pipeline hosted on Google Cloud Run that converts physical receipt images into structured JSON data using the Gemini AI and updates daily accounting entries on Google Sheets.
 
 ---
 
@@ -64,6 +64,9 @@ curl -X POST https://<your-cloud-run-service-url>/process-receipt \
   -H "X-API-KEY:YOUR_AUTH_KEY" \
   -F "file=@/path/to/receipt.jpg"
 ```
+### Examples
+<img width="1024" height="1045" alt="Example_Shortcuts" src="https://github.com/user-attachments/assets/912a92ad-b0da-4a32-9ff1-e0d8b1fbda90" />
+<img width="2114" height="1606" alt="Example_Sheet" src="https://github.com/user-attachments/assets/73406521-28a1-4906-a120-f165aeada9ac" />
 
 Copyright (c) 2026 [Mark1688288]
 
