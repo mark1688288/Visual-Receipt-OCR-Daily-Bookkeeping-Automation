@@ -9,6 +9,7 @@ An automated, serverless pipeline hosted on Google Cloud Run that converts physi
 * **Serverless Architecture**: Built with Python and containerized for Google Cloud Run for scalable execution.
 
 ## Workflow Architecture
+```text
 [Client App / Webhook / Apple Shortcuts]
                    │
                    │ (HTTP POST Image)
@@ -25,6 +26,7 @@ An automated, serverless pipeline hosted on Google Cloud Run that converts physi
                                  ├── Locates / creates date sheet (DD-MM-YYYY)
                                  ├── Appends line items
                                  └── Recalculates daily subtotal
+```
 ---
 
 ## Prerequisites
