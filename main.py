@@ -42,10 +42,32 @@ def verify_api_key():
         return False, jsonify({"status": "error", "message": "缺少 X-API-Key Header。"}), 401
 
     # 使用 hmac.compare_digest 進行安全比對
-   if not hmac.compare_digest(client_key.encode("utf-8"), MY_API_KEY.encode("utf-8")):
+    if not hmac.compare_digest(client_key.encode("utf-8"), MY_API_KEY.encode("utf-8")):
         return False, jsonify({"status": "error", "message": "X-API-Key 無效，拒絕存取。"}), 403
 
     return True, None, 200
+
+
+def parse_receipt_json(raw_text):
+    """Gemini 有時會回 [{...}] 而唔係 {...}，要先拆開再讀欄位。"""
+    parsed = json.loads(raw_text)
+    if isinstance(parsed, list):
+        if not parsed:
+            raise ValueError("模型回傳空陣列，無法識別帳單。")
+        parsed = parsed[0]
+    if not isinstance(parsed, dict):
+        raise ValueError(f"模型回傳格式不正確（{type(parsed).__name__}），預期 JSON 物件。")
+
+    required = ("store_name", "date", "receipt_ref", "payment_method", "items")
+    missing = [key for key in required if key not in parsed]
+    if missing:
+        raise ValueError(f"模型回傳缺少欄位: {', '.join(missing)}")
+    if not isinstance(parsed["items"], list) or not parsed["items"]:
+        raise ValueError("模型回傳的 items 不是有效明細陣列。")
+    for item in parsed["items"]:
+        if not isinstance(item, dict):
+            raise ValueError("模型回傳的 items 格式不正確，預期物件陣列。")
+    return parsed
 
 
 @app.route("/", methods=["GET"])
@@ -86,7 +108,7 @@ def process_receipt():
 
         prompt = """
         你是一位專精於視覺化帳單分析並統計當日流水帳的會計師。
-        請精準識別此帳單中的所有明細，並輸出以下標準 JSON 格式：
+        請精準識別此帳單中的所有明細，並輸出一個 JSON 物件（不要包在陣列裡）：
         {
          "store_name": "店鋪名稱",
          "date": "DD-MM-YYYY",
@@ -106,17 +128,56 @@ def process_receipt():
         注意：請務必確保日期格式為 日-月-年 (例如: 10-08-2026)。
         """
 
+        receipt_schema = {
+            "type": "OBJECT",
+            "properties": {
+                "store_name": {"type": "STRING"},
+                "date": {"type": "STRING"},
+                "receipt_ref": {"type": "STRING"},
+                "payment_method": {"type": "STRING"},
+                "items": {
+                    "type": "ARRAY",
+                    "items": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "item_name": {"type": "STRING"},
+                            "quantity": {"type": "NUMBER"},
+                            "unit_price": {"type": "NUMBER"},
+                            "discount": {"type": "NUMBER"},
+                            "amount": {"type": "NUMBER"},
+                        },
+                        "required": [
+                            "item_name",
+                            "quantity",
+                            "unit_price",
+                            "discount",
+                            "amount",
+                        ],
+                    },
+                },
+                "receipt_subtotal": {"type": "NUMBER"},
+            },
+            "required": [
+                "store_name",
+                "date",
+                "receipt_ref",
+                "payment_method",
+                "items",
+                "receipt_subtotal",
+            ],
+        }
+
         # 4. 呼叫 gemini-3-flash-preview 並使用 GenerateContentConfig 指定 JSON 輸出
         response = client.models.generate_content(
             model="gemini-3-flash-preview",
             contents=[image_part, prompt],
             config=types.GenerateContentConfig(
-                response_mime_type="application/json"
+                response_mime_type="application/json",
+                response_schema=receipt_schema,
             )
         )
 
-        # 解析 JSON
-        data = json.loads(response.text)
+        data = parse_receipt_json(response.text)
         date_str = data["date"]
 
         # 連結 Google Sheets
