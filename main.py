@@ -1,5 +1,6 @@
 import os
 import json
+import hmac  # 用於安全的字串比較（防止計時攻擊 Timing Attack）
 from flask import Flask, request, jsonify
 import google.auth
 from googleapiclient.discovery import build
@@ -26,15 +27,41 @@ client = genai.Client(
     location="global"
 )
 
-# 從環境變數讀取 Master 試算表 ID
+# 從環境變數讀取 Master 試算表 ID 與自訂 API Key
 MASTER_SPREADSHEET_ID = os.environ.get("MASTER_SPREADSHEET_ID")
+MY_API_KEY = os.environ.get("MY_API_KEY")
+
+def verify_api_key():
+    """專門檢查 Header 中的 X-API-Key"""
+    if not MY_API_KEY:
+        return False, jsonify({"status": "error", "message": "伺服器未設定 MY_API_KEY 環境變數。"}), 500
+
+    client_key = request.headers.get("X-API-Key")
+
+    if not client_key:
+        return False, jsonify({"status": "error", "message": "缺少 X-API-Key Header。"}), 401
+
+    # 使用 hmac.compare_digest 進行安全比對
+    if not hmac.compare_digest(client_key, MY_API_KEY):
+        return False, jsonify({"status": "error", "message": "X-API-Key 無效，拒絕存取。"}), 403
+
+    return True, None, 200
+
 
 @app.route("/", methods=["GET"])
 def health_check():
+    # 健康檢查端點（不需驗證，供 Cloud Run 監控服務使用）
     return jsonify({"status": "ok", "message": "Petty Cash API is running!"}), 200
+
 
 @app.route("/process-receipt", methods=["POST"])
 def process_receipt():
+    # ── 1. API Key 驗證 ──
+    is_valid, error_response, status_code = verify_api_key()
+    if not is_valid:
+        return error_response, status_code
+
+    # ── 2. 主要業務邏輯 ──
     try:
         if not MASTER_SPREADSHEET_ID:
             return jsonify({"status": "error", "message": "Cloud Run 未設定 MASTER_SPREADSHEET_ID 環境變數。"}), 500
@@ -61,20 +88,20 @@ def process_receipt():
         你是一位專精於視覺化帳單分析並統計當日流水帳的會計師。
         請精準識別此帳單中的所有明細，並輸出以下標準 JSON 格式：
         {
-          "store_name": "店鋪名稱",
-          "date": "DD-MM-YYYY",
-          "receipt_ref": "發票或單號",
-          "payment_method": "付款方式",
-          "items": [
-            {
-              "item_name": "物品名稱",
-              "quantity": 1,
-              "unit_price": 0.0,
-              "discount": 0.0,
-              "amount": 0.0
-            }
-          ],
-          "receipt_subtotal": 0.0
+         "store_name": "店鋪名稱",
+         "date": "DD-MM-YYYY",
+         "receipt_ref": "發票或單號",
+         "payment_method": "付款方式",
+         "items": [
+          {
+           "item_name": "物品名稱",
+           "quantity": 1,
+           "unit_price": 0.0,
+           "discount": 0.0,
+           "amount": 0.0
+          }
+         ],
+         "receipt_subtotal": 0.0
         }
         注意：請務必確保日期格式為 日-月-年 (例如: 10-08-2026)。
         """
@@ -95,7 +122,7 @@ def process_receipt():
         # 連結 Google Sheets
         gc = gspread.authorize(credentials)
         
-        # A. 直接開啟你預先分享好嘅 Master 試算表
+        # A. 直接開啟預先分享好嘅 Master 試算表
         try:
             spreadsheet = gc.open_by_key(MASTER_SPREADSHEET_ID)
         except Exception as e:
@@ -106,16 +133,13 @@ def process_receipt():
 
         # B. 尋找或建立「當日日期」嘅分頁 (Worksheet / Tab)
         try:
-            # 試試看可唔可以開啟當日分頁
             sheet = spreadsheet.worksheet(date_str)
             is_new_sheet = False
         except gspread.exceptions.WorksheetNotFound:
-            # 如果當日分頁唔存在，就新建一個分頁 (唔會觸發 Drive 建立檔案，所以 0GB 配額唔會報錯)
             sheet = spreadsheet.add_worksheet(title=date_str, rows=100, cols=10)
             is_new_sheet = True
 
         if is_new_sheet:
-            # 新分頁初始化表頭
             sheet.append_row(["日期", "店舖/單號", "項目名稱", "數量", "單價 ($)", "折扣 ($)", "項目金額 ($)", "付款方式"])
             sheet.append_row(["", "", "", "", "", "當日流水帳 Subtotal", 0, ""])
 
@@ -150,6 +174,7 @@ def process_receipt():
 
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
