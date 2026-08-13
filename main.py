@@ -42,7 +42,7 @@ def verify_api_key():
         return False, jsonify({"status": "error", "message": "缺少 X-API-Key Header。"}), 401
 
     # 使用 hmac.compare_digest 進行安全比對
-    if not hmac.compare_digest(client_key, MY_API_KEY):
+   if not hmac.compare_digest(client_key.encode("utf-8"), MY_API_KEY.encode("utf-8")):
         return False, jsonify({"status": "error", "message": "X-API-Key 無效，拒絕存取。"}), 403
 
     return True, None, 200
